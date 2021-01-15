@@ -79,6 +79,16 @@ typedef void PageStartedCallback(String url);
 /// Signature for when a [WebView] has finished loading a page.
 typedef void PageFinishedCallback(String url);
 
+/// Signature for when a page fire an Alert dialog by JavaScript.
+typedef Future<Null> JSAlertCallback(String url, String message);
+
+/// Signature for when a page fire an Confirm dialog by JavaScript.
+typedef Future<bool> JSConfirmCallback(String url, String message);
+
+/// Signature for when a page fire an Prompt dialog by JavaScript.
+typedef Future<String> JSPromptCallback(
+    String url, String message, String defaultText);
+
 /// Specifies possible restrictions on automatic media playback.
 ///
 /// This is typically used in [WebView.initialMediaPlaybackPolicy].
@@ -147,7 +157,11 @@ class WebView extends StatefulWidget {
     this.gestureRecognizers,
     this.onPageStarted,
     this.onPageFinished,
+    this.onJSAlert,
+    this.onJSConfirm,
+    this.onJSPrompt,
     this.debuggingEnabled = false,
+    this.gestureNavigationEnabled = false,
     this.userAgent,
     this.initialMediaPlaybackPolicy =
         AutoMediaPlaybackPolicy.require_user_action_for_all_media_types,
@@ -276,6 +290,24 @@ class WebView extends StatefulWidget {
   /// [WebViewController.evaluateJavascript] can assume this.
   final PageFinishedCallback onPageFinished;
 
+  /// Invoked when a page fire an Alert dialog by JavaScript.
+  ///
+  /// You have to implement your Alert dialog on your own way.
+  /// Default value will consumed dialog callback.
+  final JSAlertCallback onJSAlert;
+
+  /// Invoked when a page fire an Confirm dialog by JavaScript.
+  ///
+  /// You have to implement your Confirm dialog on your own way.
+  /// Default value will consumed dialog callback.
+  final JSConfirmCallback onJSConfirm;
+
+  /// Invoked when a page fire an Prompt dialog by JavaScript.
+  ///
+  /// You have to implement your Prompt dialog on your own way.
+  /// Default value will consumed dialog callback.
+  final JSPromptCallback onJSPrompt;
+
   /// Controls whether WebView debugging is enabled.
   ///
   /// Setting this to true enables [WebView debugging on Android](https://developers.google.com/web/tools/chrome-devtools/remote-debugging/).
@@ -290,6 +322,13 @@ class WebView extends StatefulWidget {
   final bool debuggingEnabled;
 
   /// The value used for the HTTP User-Agent: request header.
+  /// A Boolean value indicating whether horizontal swipe gestures will trigger back-forward list navigations.
+  ///
+  /// This only works on iOS.
+  ///
+  /// By default `gestureNavigationEnabled` is false.
+  final bool gestureNavigationEnabled;
+
   ///
   /// When null the platform's webview default is used for the User-Agent header.
   ///
@@ -383,6 +422,7 @@ WebSettings _webSettingsFromWidget(WebView widget) {
     javascriptMode: widget.javascriptMode,
     hasNavigationDelegate: widget.navigationDelegate != null,
     debuggingEnabled: widget.debuggingEnabled,
+    gestureNavigationEnabled: widget.gestureNavigationEnabled,
     userAgent: WebSetting<String>.of(widget.userAgent),
   );
 }
@@ -471,6 +511,30 @@ class _PlatformCallbacksHandler implements WebViewPlatformCallbacksHandler {
     if (_widget.onPageFinished != null) {
       _widget.onPageFinished(url);
     }
+  }
+
+  @override
+  Future<Null> onJSAlert(String url, String message) async {
+    if (_widget.onJSAlert != null) {
+      await _widget.onJSAlert(url, message);
+    }
+  }
+
+  @override
+  Future<bool> onJSConfirm(String url, String message) async {
+    if (_widget.onJSConfirm != null) {
+      return await _widget.onJSConfirm(url, message);
+    }
+    return false;
+  }
+
+  @override
+  Future<String> onJSPrompt(
+      String url, String message, String defaultText) async {
+    if (_widget.onJSPrompt != null) {
+      return await _widget.onJSPrompt(url, message, defaultText);
+    }
+    return '';
   }
 
   void _updateJavascriptChannelsFromSet(Set<JavascriptChannel> channels) {

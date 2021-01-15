@@ -25,7 +25,7 @@ class MethodChannelWebViewPlatform implements WebViewPlatformController {
   static const MethodChannel _cookieManagerChannel =
       MethodChannel('plugins.flutter.io/cookie_manager');
 
-  Future<bool> _onMethodCall(MethodCall call) async {
+  Future<dynamic> _onMethodCall(MethodCall call) async {
     switch (call.method) {
       case 'javascriptChannelMessage':
         final String channel = call.arguments['channel'];
@@ -43,6 +43,28 @@ class MethodChannelWebViewPlatform implements WebViewPlatformController {
       case 'onPageStarted':
         _platformCallbacksHandler.onPageStarted(call.arguments['url']);
         return null;
+      case 'onJsAlert':
+        if (_platformCallbacksHandler.onJSAlert != null) {
+          await _platformCallbacksHandler.onJSAlert(
+              call.arguments['url'], call.arguments['message']);
+        }
+        return null;
+      case 'onJsConfirm':
+        if (_platformCallbacksHandler.onJSConfirm != null) {
+          final result = await _platformCallbacksHandler.onJSConfirm(
+              call.arguments['url'], call.arguments['message']);
+          return result;
+        }
+        return false;
+      case 'onJsPrompt':
+        if (_platformCallbacksHandler.onJSPrompt != null) {
+          final result = await _platformCallbacksHandler.onJSPrompt(
+              call.arguments['url'],
+              call.arguments['message'],
+              call.arguments['defaultText']);
+          return result;
+        }
+        return '';
     }
     throw MissingPluginException(
         '${call.method} was invoked but has no handler');
@@ -137,6 +159,8 @@ class MethodChannelWebViewPlatform implements WebViewPlatformController {
     _addIfNonNull('jsMode', settings.javascriptMode?.index);
     _addIfNonNull('hasNavigationDelegate', settings.hasNavigationDelegate);
     _addIfNonNull('debuggingEnabled', settings.debuggingEnabled);
+    _addIfNonNull(
+        'gestureNavigationEnabled', settings.gestureNavigationEnabled);
     _addSettingIfPresent('userAgent', settings.userAgent);
     return map;
   }
